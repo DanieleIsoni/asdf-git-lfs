@@ -2,10 +2,9 @@
 
 set -euo pipefail
 
-# TODO: Ensure this is the correct GitHub homepage where releases can be downloaded for git-lfs.
 GH_REPO="https://github.com/git-lfs/git-lfs"
 TOOL_NAME="git-lfs"
-TOOL_TEST="git lfs --version"
+TOOL_TEST="git-lfs --version"
 
 fail() {
 	echo -e "asdf-$TOOL_NAME: $*"
@@ -31,9 +30,24 @@ list_github_tags() {
 }
 
 list_all_versions() {
-	# TODO: Adapt this. By default we simply list the tag names from GitHub releases.
-	# Change this function if git-lfs has other means of determining installable versions.
 	list_github_tags
+}
+
+get_arch() {
+	uname | tr '[:upper:]' '[:lower:]'
+}
+
+get_cpu() {
+	local machine_hardware_name
+	machine_hardware_name="$(uname -m)"
+
+	case "$machine_hardware_name" in
+	'x86_64') local cpu_type="amd64" ;;
+	'aarch64') local cpu_type="arm64" ;;
+	*) local cpu_type="$machine_hardware_name" ;;
+	esac
+
+	echo "$cpu_type"
 }
 
 download_release() {
@@ -41,8 +55,10 @@ download_release() {
 	version="$1"
 	filename="$2"
 
-	# TODO: Adapt the release URL convention for git-lfs
-	url="$GH_REPO/archive/v${version}.tar.gz"
+	local extension
+	extension="$([ $(get_arch) = "darwin" ] && echo "zip" || echo "tar.gz")"
+
+	url="$GH_REPO/releases/download/v${version}/git-lfs-$(get_arch)-$(get_cpu)-v${version}.${extension}"
 
 	echo "* Downloading $TOOL_NAME release $version..."
 	curl "${curl_opts[@]}" -o "$filename" -C - "$url" || fail "Could not download $url"
@@ -61,7 +77,6 @@ install_version() {
 		mkdir -p "$install_path"
 		cp -r "$ASDF_DOWNLOAD_PATH"/* "$install_path"
 
-		# TODO: Assert git-lfs executable exists.
 		local tool_cmd
 		tool_cmd="$(echo "$TOOL_TEST" | cut -d' ' -f1)"
 		test -x "$install_path/$tool_cmd" || fail "Expected $install_path/$tool_cmd to be executable."
